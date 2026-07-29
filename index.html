@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#FF9BBB">
+<title>🎰 まーちん誕生日ガチャ</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 効果音 ON/OFF -->
+<button id="soundToggle" class="sound-toggle" aria-label="効果音の切り替え">🔊</button>
+
+<!-- ① オープニング画面 -->
+<section id="screen-opening" class="screen active">
+  <div class="opening-inner">
+    <div class="opening-cake">🎂</div>
+    <h1 class="opening-title">まーちん<br>お誕生日<br>おめでとう！</h1>
+    <p class="opening-sub">🎉 スペシャルガチャが5回引けるよ 🎉</p>
+    <button id="btnStart" class="btn btn-primary btn-big">START ▶</button>
+  </div>
+</section>
+
+<!-- ② ガチャマシン画面 -->
+<section id="screen-gacha" class="screen">
+  <div class="gacha-inner">
+    <div class="counter">
+      のこり <span id="dots" class="dots"></span>
+    </div>
+
+    <!-- カプセルトイマシン（CSS描画） -->
+    <div id="machine" class="machine">
+      <div class="machine-dome">
+        <div class="mini-capsule mc1"></div>
+        <div class="mini-capsule mc2"></div>
+        <div class="mini-capsule mc3"></div>
+        <div class="mini-capsule mc4"></div>
+        <div class="mini-capsule mc5"></div>
+        <div class="dome-shine"></div>
+      </div>
+      <div class="machine-body">
+        <div id="handle" class="machine-handle"><div class="handle-bar"></div></div>
+        <div class="machine-sign">🎀 BIRTHDAY GACHA 🎀</div>
+        <div class="machine-chute"></div>
+      </div>
+      <div class="machine-legs"></div>
+    </div>
+
+    <div id="specialBanner" class="special-banner"></div>
+
+    <button id="btnLever" class="btn btn-primary btn-big">レバーをまわす 🔄</button>
+  </div>
+</section>
+
+<!-- ③④ カプセル排出 & オープン演出（オーバーレイ） -->
+<div id="reveal" class="reveal">
+  <div id="flash" class="flash"></div>
+  <div id="rainbow" class="rainbow"></div>
+
+  <!-- カプセル -->
+  <div id="capsuleWrap" class="capsule-wrap">
+    <div id="capsule" class="capsule">
+      <div class="capsule-top">
+        <div id="capsulePhoto" class="capsule-photo"></div>
+      </div>
+      <div class="capsule-bottom"></div>
+    </div>
+    <p class="capsule-hint">タップしてあけてね！👆</p>
+  </div>
+
+  <!-- 結果カード -->
+  <div id="resultCard" class="result-card">
+    <div id="heroTasuki" class="tasuki">主 人 公</div>
+    <div id="resultPre" class="result-pre"></div>
+    <div id="resultBadge" class="result-badge"></div>
+    <div id="resultEmoji" class="result-emoji"></div>
+    <div id="resultLabel" class="result-label"></div>
+    <div id="resultSub" class="result-sub"></div>
+    <button id="btnNext" class="btn btn-primary btn-big">もう一回引く 🎰</button>
+  </div>
+</div>
+
+<!-- ⑥ コレクション画面 -->
+<section id="screen-collection" class="screen">
+  <div class="collection-inner">
+    <h2 class="collection-title">🎁 今日のコレクション 🎁</h2>
+    <ul id="collectionList" class="collection-list"></ul>
+    <p class="collection-note">ぜんぶ出たよ〜！<br>チェキで一緒に撮ろう！📸</p>
+    <button id="btnMessage" class="btn btn-primary btn-big">メッセージを見る 💌</button>
+  </div>
+</section>
+
+<!-- ⑦ メッセージ画面（フィナーレ） -->
+<section id="screen-message" class="screen">
+  <div class="message-inner">
+    <div id="cardStage" class="card-stage"></div>
+    <div id="cardDots" class="card-dots"></div>
+    <p id="cardHint" class="card-hint">タップ or スワイプで次へ 👉</p>
+  </div>
+</section>
+
+<!-- 紙吹雪・キラキラ・ハート用レイヤー -->
+<div id="fxLayer" class="fx-layer"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
