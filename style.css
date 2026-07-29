@@ -142,6 +142,15 @@ body {
 }
 .dots { letter-spacing: 5px; color: var(--gold); }
 .dots .used { color: rgba(255,255,255,.35); }
+.dots .bonus {
+  color: #FFE082;
+  display: inline-block;
+  animation: bonusDotIn .6s cubic-bezier(.3, 1.6, .5, 1) both, bonusDotBlink 1s ease-in-out .6s infinite alternate;
+}
+@keyframes bonusDotIn { from { transform: scale(0); } to { transform: scale(1.2); } }
+@keyframes bonusDotBlink { from { opacity: 1; } to { opacity: .45; } }
+
+.hidden { display: none !important; }
 
 /* ----- マシン本体（CSS描画） ----- */
 .machine {
@@ -206,6 +215,22 @@ body {
   0%   { transform: rotate(-1deg); }
   50%  { transform: rotate(1.2deg); }
   100% { transform: rotate(-1deg); }
+}
+
+/* ひとりでに揺れだす（復活演出・不穏なゴトゴト） */
+.machine.rumbling { animation: machineRumble .5s ease-in-out infinite; }
+@keyframes machineRumble {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-3px) rotate(-.5deg); }
+  50% { transform: translateX(3px) rotate(.6deg); }
+  70% { transform: translateX(-2px); }
+}
+
+/* 金色に光るマシン（フェイク大当たり・復活演出） */
+.machine.glow-gold { animation: machineGold .5s ease-in-out infinite alternate; }
+@keyframes machineGold {
+  from { filter: drop-shadow(0 12px 18px rgba(120,40,80,.3)) drop-shadow(0 0 10px var(--gold)); }
+  to   { filter: drop-shadow(0 12px 18px rgba(120,40,80,.3)) drop-shadow(0 0 34px var(--gold)); }
 }
 
 .machine-body {
@@ -309,10 +334,11 @@ body {
 }
 .reveal.active { display: flex; }
 
-/* フラッシュ / レインボー */
+/* フラッシュ / レインボー / カウントダウン（全画面演出レイヤー） */
 .flash {
-  position: absolute;
+  position: fixed;
   inset: 0;
+  z-index: 350;
   opacity: 0;
   pointer-events: none;
 }
@@ -323,8 +349,9 @@ body {
   100% { opacity: 0; }
 }
 .rainbow {
-  position: absolute;
+  position: fixed;
   inset: 0;
+  z-index: 340;
   opacity: 0;
   pointer-events: none;
   background: linear-gradient(120deg, #ff9b9b, #ffe29b, #b6ffb2, #9bd8ff, #d3a7ff, #ff9bd8);
@@ -337,6 +364,26 @@ body {
 @keyframes rainbowMove {
   0%   { background-position: 0% 50%; }
   100% { background-position: 130% 50%; }
+}
+.countdown {
+  position: fixed;
+  inset: 0;
+  z-index: 360;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 130px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 6px 0 var(--pink-deep), 0 12px 30px rgba(0,0,0,.35);
+  pointer-events: none;
+}
+.countdown.pop { animation: countPop .7s ease both; }
+@keyframes countPop {
+  0%   { transform: scale(2.4); opacity: 0; }
+  30%  { transform: scale(1); opacity: 1; }
+  85%  { transform: scale(.95); opacity: 1; }
+  100% { transform: scale(.8); opacity: 0; }
 }
 
 /* ----- カプセル ----- */
@@ -399,6 +446,16 @@ body {
   border-radius: 0 0 95px 95px;
   background: linear-gradient(180deg, rgba(255,155,187,.85), rgba(240,106,155,.9));
   box-shadow: inset 0 8px 14px rgba(255,255,255,.45);
+}
+/* 復活演出のスペシャル金カプセル */
+.capsule.golden .capsule-bottom {
+  background: linear-gradient(180deg, #FFE082, #E8A400);
+  box-shadow: inset 0 8px 14px rgba(255,255,255,.6);
+}
+.capsule.golden { animation: goldenGlow .6s ease-in-out infinite alternate; }
+@keyframes goldenGlow {
+  from { filter: drop-shadow(0 0 8px var(--gold)); }
+  to   { filter: drop-shadow(0 0 26px var(--gold)); }
 }
 /* パカッ */
 .capsule.open .capsule-top    { transform: translateY(-130px) rotate(-28deg); opacity: 0; }
@@ -495,6 +552,12 @@ body {
   to   { transform: none; opacity: 1; }
 }
 .result-card.rarity-petit   .result-badge { background: #8FD694; }
+/* フェイク大当たり（握手券）: 見た目は完全に大当たり */
+.result-card.fake-jackpot .result-badge {
+  background: linear-gradient(90deg, #FFD24D, var(--gold));
+  color: #7A5200;
+}
+.result-card.fake-jackpot .result-pre { color: #C99000; animation: none; }
 .result-card.rarity-hazure  .result-emoji { animation: hazureFade 1.4s ease both; }
 @keyframes hazureFade { from { opacity: 0; transform: none; } to { opacity: 1; } }
 .result-card.rarity-penalty .result-badge { background: #FF8800; }

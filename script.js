@@ -26,8 +26,9 @@ const GACHA_FIXED_FIRST = {
 const GACHA_POOL = [
   { id: 'stone',  label: 'ハズレ賞\n「そのへんの石ころ」', emoji: '🪨', rarity: 'hazure',
     sub: '記念にどうぞ😇' },
-  { id: 'akushu', label: 'ハズレ賞\n「握手券（本人と・無制限）」', emoji: '🤝', rarity: 'hazure',
-    sub: 'いつでも握手できます（無料）😂' },
+  { id: 'akushu', label: '「本人との握手券」\n（無制限・いつでも使用可）', emoji: '🤝', rarity: 'hazure',
+    fakeJackpot: true, badge: '👑✨ 大当たり ✨👑',
+    sub: '……大当たり？？😂' },
   { id: 'squat',  label: '罰ゲーム：スクワット5回！', emoji: '🏋️', rarity: 'penalty',
     sub: '※やるのはガチャを引いた人です💪' },
   { id: 'thanks', label: 'ありがとうの気持ち\n（無限大）', emoji: '💐', rarity: 'petit',
@@ -65,7 +66,8 @@ const MESSAGES = [
    ここから下はロジック（触らなくてOK）
    ========================================================= */
 
-const TOTAL_DRAWS = 6;
+const TOTAL_DRAWS = 6;      // 実際の総数（6回目はシークレット）
+const VISIBLE_DRAWS = 5;    // 本人に見せる回数。ケーキは「復活演出」で出す
 
 const RARITY_META = {
   hero:    { badge: '👑 主人公',     flash: 'gold' },
@@ -118,6 +120,7 @@ function saveState() {
 
 let state = loadState();
 let busy = false;
+let revivalStarted = false;   // ケーキ復活演出が始まったか
 
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
@@ -280,6 +283,30 @@ const SoundFX = {
   buzz() {
     for (let i = 0; i < 6; i++) this._tone(110, i * 0.09, 0.07, { type: 'sawtooth', vol: 0.2 });
   },
+
+  // カウントダウンのピッ（最後だけ高い音）
+  tick(last = false) {
+    this._tone(last ? 1320 : 880, 0, 0.14, { type: 'square', vol: 0.18 });
+  },
+
+  // ドキドキの溜め（ドラムロール + せり上がる音）
+  suspense(durSec = 1.4) {
+    for (let t = 0; t < durSec; t += 0.05) this._noise(t, 0.04, 0.12);
+    this._tone(180, 0, durSec, { type: 'sine', vol: 0.2, slideTo: 700 });
+  },
+
+  // バーン！！（大当たり炸裂音）
+  bang() {
+    this._noise(0, 0.35, 0.45);
+    this._tone(90, 0, 0.6, { type: 'sine', vol: 0.4, slideTo: 45 });
+    [523, 659, 784, 1047].forEach((f) => this._tone(f, 0.05, 0.7, { type: 'sawtooth', vol: 0.12 }));
+  },
+
+  // ゴトゴト…（マシンがひとりでに揺れる不穏な音）
+  rumble(durSec = 1.3) {
+    for (let t = 0; t < durSec; t += 0.16) this._noise(t + Math.random() * 0.05, 0.1, 0.14);
+    this._tone(48, 0, durSec, { type: 'sine', vol: 0.28 });
+  },
 };
 
 // ---------- FX（紙吹雪・キラキラ・ハート） ----------
@@ -337,9 +364,11 @@ const btnLever = $('btnLever');
 const banner = $('specialBanner');
 
 function renderDots() {
-  const left = TOTAL_DRAWS - state.drawn;
-  dotsEl.innerHTML =
-    '●'.repeat(left) + `<span class="used">${'●'.repeat(state.drawn)}</span>`;
+  // 表示上は5回。6回目（ケーキ）は復活演出時に金の●が現れる
+  const used = Math.min(state.drawn, VISIBLE_DRAWS);
+  let html = '●'.repeat(VISIBLE_DRAWS - used) + `<span class="used">${'●'.repeat(used)}</span>`;
+  if (state.drawn === VISIBLE_DRAWS && revivalStarted) html += '<span class="bonus">●</span>';
+  dotsEl.innerHTML = html;
 }
 
 function setBanner(text) {
@@ -383,36 +412,100 @@ function applyPlaceholder(pick) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// フラッシュ発火ヘルパー
+function flashGo(color) {
+  flash.className = 'flash ' + color;
+  void flash.offsetWidth;
+  flash.classList.add('go');
+  setTimeout(() => flash.classList.remove('go'), 900);
+}
+
+// 3・2・1 カウントダウン表示
+async function countdown(from = 3) {
+  const el = $('countdown');
+  for (let i = from; i >= 1; i--) {
+    el.textContent = i;
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+    SoundFX.tick(i === 1);
+    await sleep(720);
+  }
+  el.textContent = '';
+  el.classList.remove('pop');
+}
+
 async function drawGacha() {
-  if (busy || state.drawn >= TOTAL_DRAWS) return;
+  if (busy || state.drawn >= VISIBLE_DRAWS) return;   // 6回目は復活演出専用
   busy = true;
   btnLever.disabled = true;
 
   const drawIndex = state.drawn;            // 0-origin
   const item = itemById(state.order[drawIndex]);
+  const n = drawIndex + 1;
   const isSecret = item.rarity === 'secret';
-  const isFinal = item.rarity === 'final';
+  const isFake = !!item.fakeJackpot;
 
   // レバー回転 0.3s
   SoundFX.click();
   handle.classList.add('turn');
   await sleep(300);
 
-  // ガラガラ（通常0.8s / SECRETは2s + テキスト）
-  const rattleSec = isSecret ? 2.0 : 0.8;
-  if (isSecret) setBanner('✨ Something special... ✨');
-  SoundFX.rattle(rattleSec);
-  machine.classList.add('shaking');
-  await sleep(rattleSec * 1000);
-  machine.classList.remove('shaking');
+  if (isSecret) {
+    // 5回目（チェキ）: ラスト風の特大溜め演出
+    setBanner(`${n}回目！ラストガチャ！`);
+    SoundFX.rattle(1.2);
+    machine.classList.add('shaking');
+    await sleep(1200);
+    machine.classList.remove('shaking');
+    setBanner('✨ Something special... ✨');
+    SoundFX.suspense(1.5);
+    machine.classList.add('rumbling');
+    await sleep(1500);
+    machine.classList.remove('rumbling');
+    await countdown(3);
+    flashGo('white');
+    SoundFX.bang();
+    await sleep(350);
+  } else if (isFake) {
+    // 握手券: フェイク大当たり演出（金ピカ + カウントダウン + バーン！）
+    setBanner(`${n}回目！`);
+    SoundFX.rattle(0.8);
+    machine.classList.add('shaking');
+    await sleep(800);
+    setBanner('！？ なんか金色に光ってる…！？');
+    machine.classList.add('glow-gold');
+    SoundFX.suspense(1.5);
+    await sleep(1500);
+    machine.classList.remove('shaking');
+    await countdown(3);
+    machine.classList.remove('glow-gold');
+    flashGo('gold');
+    SoundFX.bang();
+    setBanner('バーン！！ 大当たり！！！');
+    confetti(40);
+    await sleep(900);
+  } else {
+    // 通常: 「n回目！」＋ガラガラ0.8s
+    setBanner(`${n}回目！`);
+    SoundFX.rattle(0.8);
+    machine.classList.add('shaking');
+    await sleep(800);
+    machine.classList.remove('shaking');
+  }
+
   handle.classList.remove('turn');
   handle.classList.remove('glow');
   setBanner('');
+  await ejectAndWait(drawIndex, item, isFake);
+}
 
-  // カプセル排出 → タップ待ち
+// カプセル排出 → タップ待ち（golden=trueで金カプセル）
+async function ejectAndWait(drawIndex, item, golden = false) {
   SoundFX.pop();
   setCapsulePhoto(drawIndex);
   capsule.classList.remove('open');
+  capsule.classList.toggle('golden', golden);
   resultCard.classList.remove('active');
   capsuleWrap.classList.add('active', 'drop-in');
   reveal.classList.add('active');
@@ -455,12 +548,16 @@ function isSlowOpen(item) {
 function playRarityFX(item) {
   const meta = RARITY_META[item.rarity];
 
-  if (meta.flash) {
-    flash.className = 'flash ' + meta.flash;
-    void flash.offsetWidth;               // アニメ再発火
-    flash.classList.add('go');
-    setTimeout(() => flash.classList.remove('go'), 900);
+  // フェイク大当たり: 中身はハズレでも演出は完全に大当たり
+  if (item.fakeJackpot) {
+    flashGo('gold');
+    SoundFX.fanfare(true);
+    confetti(70);
+    sparkles(18);
+    return;
   }
+
+  if (meta.flash) flashGo(meta.flash);
 
   switch (item.rarity) {
     case 'hero':
@@ -506,22 +603,28 @@ function playRarityFX(item) {
 
 function buildResultCard(item) {
   const meta = RARITY_META[item.rarity];
-  resultCard.className = 'result-card active rarity-' + item.rarity;
+  resultCard.className = 'result-card active rarity-' + item.rarity +
+    (item.fakeJackpot ? ' fake-jackpot' : '');
 
   $('resultPre').textContent =
+    item.fakeJackpot ? '🎉 バーン！！大当たり！！！' :
     item.rarity === 'hero' ? '🎽 今日の主役はまーちんだ！' :
     item.rarity === 'hazure' ? 'ガガ〜ン！！😱' :
-    item.rarity === 'final' ? '🎊 全部引いたね！' : '';
-  $('resultBadge').textContent = meta.badge;
+    item.rarity === 'final' ? '🎂 スペシャルサプライズ！！' : '';
+  $('resultBadge').textContent = item.badge || meta.badge;
   $('resultEmoji').textContent = item.emoji;
   $('resultLabel').textContent = item.label;
   $('resultSub').textContent = item.sub || '';
 
   const btnNext = $('btnNext');
-  if (state.drawn + 1 >= TOTAL_DRAWS) {
-    // この後 state.drawn が +1 される＝最後の1個
+  if (item.rarity === 'final') {
+    // 本当の最後（ケーキ）
     btnNext.textContent = 'コレクションを見る 🎁';
     btnNext.onclick = () => { SoundFX.click(); closeReveal(); showCollection(); };
+  } else if (item.rarity === 'secret') {
+    // チェキ＝表向きのラスト。ここで一旦「おしまい」と思わせる
+    btnNext.textContent = 'やった〜！ガチャおしまい！🎉';
+    btnNext.onclick = () => { SoundFX.click(); closeReveal(); fakeEnding(); };
   } else {
     btnNext.textContent = 'もう一回引く 🎰';
     btnNext.onclick = () => { SoundFX.click(); closeReveal(); prepareNextDraw(); };
@@ -536,12 +639,77 @@ function closeReveal() {
 
 function prepareNextDraw() {
   renderDots();
+  btnLever.classList.remove('hidden');
   btnLever.disabled = false;
   const nextItem = itemById(state.order[state.drawn]);
-  if (nextItem && nextItem.rarity === 'final') {
-    setBanner('🎊 最後のガチャ！');
+  if (nextItem && nextItem.rarity === 'secret') {
+    // 表向きのラスト（チェキ）を煽る
+    setBanner('🎊 つぎで最後のガチャ！');
     handle.classList.add('glow');
   }
+}
+
+// ---------- ケーキ復活演出（フェイクエンディング → サプライズ6回目） ----------
+function fakeEnding() {
+  showScreen('gacha');
+  btnLever.classList.add('hidden');
+  renderDots();
+  setBanner('今日のガチャはこれでおしまい！ありがとう💕');
+  busy = false;
+
+  // どこをタップしても復活シーケンスへ
+  const trigger = () => {
+    screens.gacha.removeEventListener('click', trigger);
+    revivalSequence();
+  };
+  screens.gacha.addEventListener('click', trigger);
+
+  // 放置していても不穏な気配で誘導する
+  setTimeout(() => {
+    if (!revivalStarted) {
+      setBanner('……ん？ なんか音がしない…？');
+      SoundFX.rumble(0.8);
+      machine.classList.add('rumbling');
+      setTimeout(() => { if (!revivalStarted) machine.classList.remove('rumbling'); }, 1200);
+    }
+  }, 3000);
+}
+
+async function revivalSequence() {
+  if (revivalStarted || busy) return;
+  revivalStarted = true;
+  busy = true;
+
+  setBanner('…あれ？ おやおや…？');
+  machine.classList.add('rumbling');
+  SoundFX.rumble(1.4);
+  await sleep(1400);
+
+  setBanner('様子がおかしいぞ…！？');
+  machine.classList.remove('rumbling');
+  machine.classList.add('shaking');
+  SoundFX.rumble(1.4);
+  await sleep(1400);
+
+  setBanner('！！！！');
+  machine.classList.add('glow-gold');
+  SoundFX.suspense(1.3);
+  await sleep(1300);
+  machine.classList.remove('shaking');
+
+  await countdown(3);
+  machine.classList.remove('glow-gold');
+  flashGo('gold');
+  SoundFX.bang();
+  setBanner('✨ スペシャルガチャ ふっかつ！！ ✨');
+  renderDots();          // 金の6個目●が現れる
+  confetti(50);
+  await sleep(1100);
+  setBanner('');
+
+  // 金カプセルで最後の1個（ケーキ）を排出
+  const item = itemById(state.order[TOTAL_DRAWS - 1]);
+  await ejectAndWait(TOTAL_DRAWS - 1, item, true);
 }
 
 // ---------- コレクション ----------
@@ -571,7 +739,7 @@ function showCollection() {
     text.className = 'ci-text';
     const badge = document.createElement('span');
     badge.className = 'ci-badge';
-    badge.textContent = meta.badge;
+    badge.textContent = item.badge || meta.badge;
     const label = document.createElement('div');
     label.className = 'ci-label';
     label.textContent = item.label.replace(/\n/g, ' ');
@@ -681,6 +849,8 @@ $('soundToggle').addEventListener('click', () => {
 renderDots();
 if (state.drawn >= TOTAL_DRAWS) {
   showCollection();
+} else if (state.drawn === VISIBLE_DRAWS) {
+  fakeEnding();                       // チェキまで引いた状態 → 復活演出待ち
 } else if (state.drawn > 0) {
   showScreen('gacha');
   prepareNextDraw();

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#FF9BBB">
 <title>🎰 まーちん誕生日ガチャ</title>
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 
@@ -17,7 +17,7 @@
   <div class="opening-inner">
     <div class="opening-cake">🎂</div>
     <h1 class="opening-title">まーちん<br>お誕生日<br>おめでとう！</h1>
-    <p class="opening-sub">🎉 スペシャルガチャが6回引けるよ 🎉</p>
+    <p class="opening-sub">🎉 スペシャルガチャが5回引けるよ 🎉</p>
     <button id="btnStart" class="btn btn-primary btn-big">START ▶</button>
   </div>
 </section>
@@ -53,11 +53,13 @@
   </div>
 </section>
 
+<!-- フラッシュ・レインボー・カウントダウン（全画面演出、どの画面でも使う） -->
+<div id="flash" class="flash"></div>
+<div id="rainbow" class="rainbow"></div>
+<div id="countdown" class="countdown"></div>
+
 <!-- ③④ カプセル排出 & オープン演出（オーバーレイ） -->
 <div id="reveal" class="reveal">
-  <div id="flash" class="flash"></div>
-  <div id="rainbow" class="rainbow"></div>
-
   <!-- カプセル -->
   <div id="capsuleWrap" class="capsule-wrap">
     <div id="capsule" class="capsule">
@@ -103,6 +105,6 @@
 <!-- 紙吹雪・キラキラ・ハート用レイヤー -->
 <div id="fxLayer" class="fx-layer"></div>
 
-<script src="script.js?v=2"></script>
+<script src="script.js?v=3"></script>
 </body>
 </html>
