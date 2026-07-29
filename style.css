@@ -489,6 +489,12 @@ body {
 
 /* レアリティ別カラー */
 .result-card.rarity-hazure  .result-badge { background: #999; }
+.result-card.rarity-hazure  .result-pre   { color: #888; animation: gagaanDrop .5s cubic-bezier(.3, 1.4, .6, 1) both; }
+@keyframes gagaanDrop {
+  from { transform: translateY(-30px) scale(1.6); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.result-card.rarity-petit   .result-badge { background: #8FD694; }
 .result-card.rarity-hazure  .result-emoji { animation: hazureFade 1.4s ease both; }
 @keyframes hazureFade { from { opacity: 0; transform: none; } to { opacity: 1; } }
 .result-card.rarity-penalty .result-badge { background: #FF8800; }
@@ -516,6 +522,7 @@ body.shake-screen { animation: screenShake .4s linear 2; }
 .flash.pink      { background: radial-gradient(circle, #fff 0%, var(--pink) 65%); }
 .flash.turquoise { background: radial-gradient(circle, #E2FFFF 0%, var(--turquoise) 65%); }
 .flash.white     { background: #fff; }
+.flash.gray      { background: radial-gradient(circle, #ccc 0%, #555 70%); }
 
 /* =========================================
    ⑥ コレクション

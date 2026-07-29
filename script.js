@@ -22,19 +22,28 @@ const GACHA_FIXED_FIRST = {
   sub: '今日一日これを掛けて過ごすべし👑',
 };
 
-// ランダム枠（2〜3回目、4種から重複なしで2つピック）
+// ランダム枠（2〜4回目、6種から重複なしで3つピック）
 const GACHA_POOL = [
-  { id: 'hazure', label: 'しょうもない賞\n「ありがとうの気持ちだけ」', emoji: '💀', rarity: 'hazure',
-    sub: '……気持ちは山盛りです😂' },
+  { id: 'stone',  label: 'ハズレ賞\n「そのへんの石ころ」', emoji: '🪨', rarity: 'hazure',
+    sub: '記念にどうぞ😇' },
+  { id: 'akushu', label: 'ハズレ賞\n「握手券（本人と・無制限）」', emoji: '🤝', rarity: 'hazure',
+    sub: 'いつでも握手できます（無料）😂' },
   { id: 'squat',  label: '罰ゲーム：スクワット5回！', emoji: '🏋️', rarity: 'penalty',
     sub: '※やるのはガチャを引いた人です💪' },
-  { id: 'ticket', label: '肩たたき券（10回分）', emoji: '🎫', rarity: 'rare',
-    sub: 'いつでも使える永久有効チケット💆' },
+  { id: 'thanks', label: 'ありがとうの気持ち\n（無限大）', emoji: '💐', rarity: 'petit',
+    sub: '毎日心を込めて進呈します🥰' },
+  { id: 'ticket', label: '肩たたき券（3回分）', emoji: '🎫', rarity: 'rare',
+    sub: 'いつでも使える有効期限なしチケット💆' },
   { id: 'ghibli', label: 'ジブリパーク展＠大阪\n1日デート（8/9〜12のどこか）', emoji: '🗺️', rarity: 'super',
     sub: '大阪南港ATCギャラリーで開催中🌳' },
 ];
 
-// 確定・4回目 / 5回目
+// 🔁 ハズレの差し替え候補（使うときは上のGACHA_POOLと入れ替える）
+// { id: 'air',    label: 'ハズレ賞「おいしい空気」',          emoji: '💨', rarity: 'hazure', sub: '深呼吸してお楽しみください🌬️' }
+// { id: 'goen',   label: 'ハズレ賞「5円玉（ご縁がありますように）」', emoji: '🪙', rarity: 'hazure', sub: 'ちゃんと本物をあげます⛩️' }
+// { id: 'tissue', label: 'ハズレ賞「ティッシュ1枚（高級気分）」', emoji: '🧻', rarity: 'hazure', sub: 'ふわふわの1枚を厳選しました' }
+
+// 確定・5回目 / 6回目
 const GACHA_FIXED_LAST2 = [
   { id: 'cheki', label: 'チェキ instax mini Evo\nGENTLE ROSE', emoji: '📷', rarity: 'secret',
     sub: 'プレゼントを確認してね💝' },
@@ -56,16 +65,17 @@ const MESSAGES = [
    ここから下はロジック（触らなくてOK）
    ========================================================= */
 
-const TOTAL_DRAWS = 5;
+const TOTAL_DRAWS = 6;
 
 const RARITY_META = {
-  hero:    { badge: '👑 主人公',   flash: 'gold' },
-  hazure:  { badge: '😂 ハズレ',   flash: null },
-  penalty: { badge: '💪 罰ゲーム', flash: null },
-  rare:    { badge: '⭐⭐ RARE',    flash: 'pink' },
-  super:   { badge: '⭐⭐⭐ SUPER', flash: 'turquoise' },
-  secret:  { badge: '📸 SECRET',  flash: 'white' },
-  final:   { badge: '🎂 FINAL',   flash: 'gold' },
+  hero:    { badge: '👑 主人公',     flash: 'gold' },
+  hazure:  { badge: '😂 ハズレ',     flash: 'gray' },
+  penalty: { badge: '💪 罰ゲーム',   flash: null },
+  petit:   { badge: '⭐ ちょい当たり', flash: 'pink' },
+  rare:    { badge: '⭐⭐ RARE',      flash: 'pink' },
+  super:   { badge: '⭐⭐⭐ SUPER',   flash: 'turquoise' },
+  secret:  { badge: '📸 SECRET',    flash: 'white' },
+  final:   { badge: '🎂 FINAL',     flash: 'gold' },
 };
 
 const MSG_ICONS = { thanks: '🙏', like: '💗', message: '💌', final: '💕' };
@@ -74,7 +84,7 @@ const ALL_ITEMS = [GACHA_FIXED_FIRST, ...GACHA_POOL, ...GACHA_FIXED_LAST2];
 const itemById = (id) => ALL_ITEMS.find((it) => it.id === id);
 
 // ---------- 状態（誤リロード対策で sessionStorage に保存） ----------
-const STORE_KEY = 'machin-gacha-v1';
+const STORE_KEY = 'machin-gacha-v2';
 
 function buildOrder() {
   const pool = [...GACHA_POOL];
@@ -82,7 +92,8 @@ function buildOrder() {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  return [GACHA_FIXED_FIRST.id, pool[0].id, pool[1].id, GACHA_FIXED_LAST2[0].id, GACHA_FIXED_LAST2[1].id];
+  return [GACHA_FIXED_FIRST.id, pool[0].id, pool[1].id, pool[2].id,
+          GACHA_FIXED_LAST2[0].id, GACHA_FIXED_LAST2[1].id];
 }
 
 function buildPhotoPicks() {
@@ -212,10 +223,57 @@ const SoundFX = {
     }
   },
 
-  // ハズレ用ずっこけ音
-  womp() {
-    this._tone(300, 0, 0.35, { type: 'sawtooth', vol: 0.18, slideTo: 150 });
-    this._tone(150, 0.4, 0.5, { type: 'sawtooth', vol: 0.15, slideTo: 90 });
+  // ハズレ用「ガガーン！」（ジャーン…ジャーン…ズーン）
+  gagaan() {
+    // 不協和音の重いスタブ×2
+    [0, 0.45].forEach((start, i) => {
+      const base = i === 0 ? 220 : 196;
+      [base, base * 1.06, base / 2].forEach((f) => {
+        this._tone(f, start, 0.42, { type: 'sawtooth', vol: 0.22 });
+      });
+      this._noise(start, 0.12, 0.2);
+    });
+    // 最後に地の底へ沈む低音
+    this._tone(110, 0.95, 1.2, { type: 'sawtooth', vol: 0.2, slideTo: 50 });
+  },
+
+  // ちょい当たり用の可愛いピロリン♪
+  chime() {
+    [784, 1047, 1319].forEach((f, i) => {
+      this._tone(f, i * 0.09, 0.28, { type: 'triangle', vol: 0.25 });
+    });
+  },
+
+  // SECRET / FINAL 用の豪華ファンファーレ
+  // （ドラムロール → 駆け上がりアルペジオ → ジャーン和音 + キラキラ）
+  grandFanfare() {
+    // ドラムロール
+    for (let t = 0; t < 0.55; t += 0.045) this._noise(t, 0.04, 0.16);
+    this._tone(65, 0, 0.55, { type: 'sine', vol: 0.3 });
+
+    // 2オクターブ駆け上がり
+    const run = [523, 659, 784, 1047, 1319, 1568, 2093];
+    run.forEach((f, i) => {
+      const t = 0.55 + i * 0.09;
+      this._tone(f, t, 0.22, { type: 'triangle', vol: 0.3 });
+      this._tone(f / 2, t, 0.22, { type: 'square', vol: 0.08 });
+    });
+
+    // ジャーン！（Cメジャー和音ロング、2連発）
+    const hit = 0.55 + run.length * 0.09 + 0.05;
+    [[hit, 0.5], [hit + 0.55, 1.4]].forEach(([t, dur]) => {
+      [523, 659, 784, 1047, 1319].forEach((f) => {
+        this._tone(f, t, dur, { type: 'triangle', vol: 0.18 });
+        this._tone(f / 2, t, dur, { type: 'sine', vol: 0.1 });
+      });
+      this._noise(t, 0.1, 0.18);
+    });
+
+    // キラキラ（高音の煌めきをランダムに散らす）
+    for (let i = 0; i < 10; i++) {
+      const t = hit + 0.5 + Math.random() * 1.2;
+      this._tone(2093 + Math.random() * 1500, t, 0.18, { type: 'sine', vol: 0.09 });
+    }
   },
 
   // ビリビリ
@@ -411,12 +469,18 @@ function playRarityFX(item) {
       sparkles(14);
       break;
     case 'hazure':
-      SoundFX.womp();
+      SoundFX.gagaan();
+      document.body.classList.add('shake-screen');
+      setTimeout(() => document.body.classList.remove('shake-screen'), 900);
       break;
     case 'penalty':
       SoundFX.buzz();
       document.body.classList.add('shake-screen');
       setTimeout(() => document.body.classList.remove('shake-screen'), 900);
+      break;
+    case 'petit':
+      SoundFX.chime();
+      sparkles(8);
       break;
     case 'rare':
       SoundFX.fanfare(false);
@@ -426,14 +490,14 @@ function playRarityFX(item) {
       sparkles(24);
       break;
     case 'secret':
-      SoundFX.fanfare(true);
+      SoundFX.grandFanfare();
       rainbow.classList.add('go');
       sparkles(28);
       confetti(40);
       setTimeout(() => rainbow.classList.remove('go'), 3500);
       break;
     case 'final':
-      SoundFX.fanfare(true);
+      SoundFX.grandFanfare();
       confetti(140, 5000);
       sparkles(20);
       break;
@@ -446,6 +510,7 @@ function buildResultCard(item) {
 
   $('resultPre').textContent =
     item.rarity === 'hero' ? '🎽 今日の主役はまーちんだ！' :
+    item.rarity === 'hazure' ? 'ガガ〜ン！！😱' :
     item.rarity === 'final' ? '🎊 全部引いたね！' : '';
   $('resultBadge').textContent = meta.badge;
   $('resultEmoji').textContent = item.emoji;
