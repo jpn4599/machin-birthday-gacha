@@ -9,8 +9,20 @@
 // 📷 二人の写真。photos/ に入れてここにパスを追記するだけで反映される。
 // 空のままでも動く（かわいい絵文字プレースホルダーになる）
 const PHOTOS = [
-  // 'photos/photo1.jpg',
-  // 'photos/photo2.jpg',
+  'photos/photo01.jpg',
+  'photos/photo02.jpg',
+  'photos/photo03.jpg',
+  'photos/photo04.jpg',
+  'photos/photo05.jpg',
+  'photos/photo06.jpg',
+  'photos/photo07.jpg',
+  'photos/photo08.jpg',
+  'photos/photo09.jpg',
+  'photos/photo10.jpg',
+  'photos/photo11.jpg',
+  'photos/photo12.jpg',
+  'photos/photo13.jpg',
+  'photos/photo14.jpg',
 ];
 
 // 写真が無いときにカプセル上半分に出す絵文字
