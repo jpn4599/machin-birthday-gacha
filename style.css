@@ -415,6 +415,16 @@ body {
   25%      { transform: rotate(-12deg) scale(1.03); }
   70%      { transform: rotate(10deg); }
 }
+/* タップ待ち: 写真がゆっくり下に流れて全体が見えていく
+   （縦写真は上下・横写真は左右にパン。中央始まりでスナップしない） */
+.capsule-wrap.waiting .capsule-photo {
+  animation: photoPan 8s ease-in-out .6s infinite;
+}
+@keyframes photoPan {
+  0%, 100% { background-position: 50% 50%; }
+  25%      { background-position: 0% 0%; }
+  75%      { background-position: 100% 100%; }
+}
 .capsule-top, .capsule-bottom {
   position: absolute;
   left: 0;
