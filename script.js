@@ -25,7 +25,7 @@ const PHOTOS = [
   'photos/photo14.jpg',
 ];
 
-// 写真が無いときにカプセル上半分に出す絵文字
+// 写真が無いときにカプセルに出す絵文字
 const PLACEHOLDER_EMOJIS = ['😆', '🥰', '📸', '💖', '🎈'];
 
 // 確定・1回目
@@ -98,7 +98,7 @@ const ALL_ITEMS = [GACHA_FIXED_FIRST, ...GACHA_POOL, ...GACHA_FIXED_LAST2];
 const itemById = (id) => ALL_ITEMS.find((it) => it.id === id);
 
 // ---------- 状態（誤リロード対策で sessionStorage に保存） ----------
-const STORE_KEY = 'machin-gacha-v2';
+const STORE_KEY = 'machin-gacha-v3';
 
 function buildOrder() {
   const pool = [...GACHA_POOL];
@@ -110,9 +110,15 @@ function buildOrder() {
           GACHA_FIXED_LAST2[0].id, GACHA_FIXED_LAST2[1].id];
 }
 
+// 写真をシャッフルして先頭から使う（同じ写真が2回出ないように）
 function buildPhotoPicks() {
   const n = PHOTOS.length > 0 ? PHOTOS.length : PLACEHOLDER_EMOJIS.length;
-  return Array.from({ length: TOTAL_DRAWS }, () => Math.floor(Math.random() * n));
+  const idx = Array.from({ length: n }, (_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [idx[i], idx[j]] = [idx[j], idx[i]];
+  }
+  return Array.from({ length: TOTAL_DRAWS }, (_, i) => idx[i % n]);
 }
 
 function loadState() {
@@ -120,7 +126,8 @@ function loadState() {
     const raw = sessionStorage.getItem(STORE_KEY);
     if (raw) {
       const s = JSON.parse(raw);
-      if (Array.isArray(s.order) && s.order.length === TOTAL_DRAWS) return s;
+      if (Array.isArray(s.order) && s.order.length === TOTAL_DRAWS &&
+          Array.isArray(s.photos) && s.photos.length === TOTAL_DRAWS) return s;
     }
   } catch (e) { /* sessionStorage不可でも動かす */ }
   return { order: buildOrder(), photos: buildPhotoPicks(), drawn: 0 };
@@ -393,22 +400,26 @@ const reveal = $('reveal');
 const capsuleWrap = $('capsuleWrap');
 const capsule = $('capsule');
 const capsulePhoto = $('capsulePhoto');
+const capsulePhotoBottom = $('capsulePhotoBottom');
+const capsuleHalves = [capsulePhoto, capsulePhotoBottom];
 const resultCard = $('resultCard');
 const flash = $('flash');
 const rainbow = $('rainbow');
 
 function setCapsulePhoto(drawIndex) {
   const pick = state.photos[drawIndex] || 0;
-  capsulePhoto.textContent = '';
-  capsulePhoto.style.backgroundImage = '';
-  capsulePhoto.style.background = '';
+  capsuleHalves.forEach((el) => {
+    el.textContent = '';
+    el.style.backgroundImage = '';
+    el.style.background = '';
+  });
   if (PHOTOS.length > 0) {
     const src = PHOTOS[pick % PHOTOS.length];
-    capsulePhoto.style.backgroundImage = `url("${src}")`;
+    capsuleHalves.forEach((el) => { el.style.backgroundImage = `url("${src}")`; });
     // ロード失敗時は絵文字にフォールバック
     const img = new Image();
     img.onerror = () => {
-      capsulePhoto.style.backgroundImage = '';
+      capsuleHalves.forEach((el) => { el.style.backgroundImage = ''; });
       applyPlaceholder(pick);
     };
     img.src = src;
@@ -419,7 +430,9 @@ function setCapsulePhoto(drawIndex) {
 
 function applyPlaceholder(pick) {
   capsulePhoto.textContent = PLACEHOLDER_EMOJIS[pick % PLACEHOLDER_EMOJIS.length];
-  capsulePhoto.style.background = 'linear-gradient(140deg, #FFE2EE, #E2D2FF)';
+  capsuleHalves.forEach((el) => {
+    el.style.background = 'linear-gradient(140deg, #FFE2EE, #E2D2FF)';
+  });
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
